@@ -1,3 +1,21 @@
+/*
+    Copyright 2018 0KIMS association.
+
+    This file is part of circom (Zero Knowledge Circuit Compiler).
+
+    circom is a free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    circom is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+    or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+    License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with circom. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 include "../node_modules/circomlib/circuits/smt/smtverifier.circom";
 include "../node_modules/circomlib/circuits/smt/smtprocessor.circom";
@@ -8,7 +26,7 @@ include "../node_modules/circomlib/circuits/sign.circom";
 
 template BuildUserRootClaims() {
     signal input version;
-    signal input identityId;
+    signal input idIdentity;
     signal input era;
     signal input newRroot;
     signal input oldRroot;
@@ -16,9 +34,6 @@ template BuildUserRootClaims() {
     signal output old_hv;
     signal output new_hi;
     signal output new_hv;
-
-    signal versionBin[32];
-    signal eraBin[32];
 
     var CLAIMTYPE = 2;
 
@@ -34,7 +49,7 @@ template BuildUserRootClaims() {
 
 
     component hashIdxNew = MultiMiMC7(2, 91);
-    hashIdxNew.in[0] <== identityId;
+    hashIdxNew.in[0] <== idIdentity;
     hashIdxNew.in[1] <== idx.out ;
     new_hi <== hashIdxNew.out;
     component hashValueNew = MultiMiMC7(2, 91);
@@ -43,7 +58,7 @@ template BuildUserRootClaims() {
     new_hv <== hashValueNew.out;
 
     component hashIdxOld = MultiMiMC7(2, 91);
-    hashIdxOld.in[0] <== identityId;
+    hashIdxOld.in[0] <== idIdentity;
     hashIdxOld.in[1] <== idx.out - 2**64; // Decrement version.  (If 0 oldRoot is not checked)
     old_hi <== hashIdxOld.out;
     component hashValueOld = MultiMiMC7(2, 91);
@@ -62,7 +77,7 @@ template BuildAuthorizeKeyClaims() {
     var CLAIMTYPE = 1;
 
     component Axbin = Num2Bits_strict();
-    Axbin.in <= Ax;
+    Axbin.in <== Ax;
     component sign = Sign();
     for (var i=0; i<254; i++) sign.in[i] <== Axbin.out[i];
 
@@ -93,7 +108,7 @@ template ClaimRootUpdate(nLevelsRelayer, nLevelsUser) {
     signal output newRelayerRoot;
 
     signal input oldUserRoot;
-    signal input identityId;
+    signal input idIdentity;
     signal input era;
     signal input newUserRoot;
     signal input newUserRootVersion;
@@ -131,12 +146,17 @@ template ClaimRootUpdate(nLevelsRelayer, nLevelsUser) {
     // Build User Root Claims (new and old)
     component buildUserRootClaims = BuildUserRootClaims();
     buildUserRootClaims.version <== newUserRootVersion;
-    buildUserRootClaims.identityId <== identityId;
+    buildUserRootClaims.idIdentity <== idIdentity;
     buildUserRootClaims.era <== era;
     buildUserRootClaims.newRroot <== newUserRoot;
     buildUserRootClaims.oldRroot <== oldUserRoot;
 
     // Verify the signature
+    component signMsgHash = MultiMiMC7(3, 91);
+    signMsgHash.in[0] <== 1234123412341234 // change root method
+    signMsgHash.in[1] <== buildUserRootClaims.new_hi;
+    signMsgHash.in[2] <== buildUserRootClaims.new_hv;
+
     component sigVerification = EdDSAMiMCVerifier();
     sigVerification.enabled <== 1-verIsZero.out;
     sigVerification.R8x <== sigR8x;
@@ -144,7 +164,7 @@ template ClaimRootUpdate(nLevelsRelayer, nLevelsUser) {
     sigVerification.Ax <== sigKeyX;
     sigVerification.Ay <== sigKeyY;
     sigVerification.S <== sigS;
-    sigVerification.M <== buildUserRootClaims.new_hv;
+    sigVerification.M <== signMsgHash.out;
 
     // Build the key authorization claims.
     component buildAuthorizeKeyClaims = BuildAuthorizeKeyClaims();
@@ -185,7 +205,7 @@ template ClaimRootUpdate(nLevelsRelayer, nLevelsUser) {
     smtOldRootInclusion.enabled <== 1-verIsZero.out;
     smtOldRootInclusion.fnc <== 0;
     smtOldRootInclusion.root <== oldRelayerRoot;
-    for (var i=0; i<nLevelsUser; i++) {
+    for (var i=0; i<nLevelsRelayer; i++) {
         smtOldRootInclusion.siblings[i] <==  oldRootInclusion_siblings[i];
     }
     smtOldRootInclusion.oldKey <== 0;
@@ -201,7 +221,7 @@ template ClaimRootUpdate(nLevelsRelayer, nLevelsUser) {
     smtRelayerInsert.fnc[1] <==  0;
     smtRelayerInsert.oldRoot <== oldRelayerRoot;
     smtRelayerInsert.newRoot <== newRelayerRoot;
-    for (var i=0; i<nLevelsUser; i++) {
+    for (var i=0; i<nLevelsRelayer; i++) {
         smtRelayerInsert.siblings[i] <==  relayerInsert_siblings[i];
     }
     smtRelayerInsert.oldKey <== relayerInsert_oldKey;

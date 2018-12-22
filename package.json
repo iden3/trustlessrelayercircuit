@@ -18,7 +18,10 @@
     "url": "https://github.com/iden3/circom.git"
   },
   "dependencies": {
-    "circomlib": "0.0.1",
-    "eslint-plugin-mocha": "^5.2.0"
+    "big-integer": "^1.6.40",
+    "circom": "0.0.24",
+    "circomlib": "0.0.5",
+    "eslint-plugin-mocha": "^5.2.0",
+    "snarkjs": "^0.1.9"
   }
 }
