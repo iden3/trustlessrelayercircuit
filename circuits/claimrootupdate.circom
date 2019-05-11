@@ -105,7 +105,7 @@ template BuildAuthorizeKeyClaims() {
 
 template ClaimRootUpdate(nLevelsRelayer, nLevelsUser) {
     signal input oldRelayerRoot;
-    signal output newRelayerRoot;
+    signal input newRelayerRoot;
 
     signal input oldUserRoot;
     signal input idIdentity;
@@ -199,7 +199,6 @@ template ClaimRootUpdate(nLevelsRelayer, nLevelsUser) {
     smtSignKeyExclusion.key <== buildAuthorizeKeyClaims.exc_hi;
     smtSignKeyExclusion.value <== 0;
 
-
     // Verify that the old root is on the relayer tree
     component smtOldRootInclusion = SMTVerifier(nLevelsRelayer);
     smtOldRootInclusion.enabled <== 1-verIsZero.out;
@@ -220,7 +219,6 @@ template ClaimRootUpdate(nLevelsRelayer, nLevelsUser) {
     smtRelayerInsert.fnc[0] <==  1;
     smtRelayerInsert.fnc[1] <==  0;
     smtRelayerInsert.oldRoot <== oldRelayerRoot;
-    smtRelayerInsert.newRoot <== newRelayerRoot;
     for (var i=0; i<nLevelsRelayer; i++) {
         smtRelayerInsert.siblings[i] <==  relayerInsert_siblings[i];
     }
@@ -229,4 +227,6 @@ template ClaimRootUpdate(nLevelsRelayer, nLevelsUser) {
     smtRelayerInsert.isOld0 <== relayerInsert_isOld0;
     smtRelayerInsert.newKey <== buildUserRootClaims.new_hi;
     smtRelayerInsert.newValue <== buildUserRootClaims.new_hv;
+
+    smtRelayerInsert.newRoot === newRelayerRoot;
 }
