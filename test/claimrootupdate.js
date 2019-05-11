@@ -76,7 +76,7 @@ describe("Claim root update TX", function () {
             oldUserRoot: 0,
             idIdentity: idIdentity,
             era: 0,
-            newUserRoot: res.newRoot,
+            newUserRoot: userTree.root,
             newUserRootVersion: 0,
             sigKeyX: pubKey1[0],
             sigKeyY: pubKey1[1],
